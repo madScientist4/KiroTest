@@ -1020,16 +1020,25 @@
 
         // Return to Main Menu
         function returnToMainMenu() {
-            if (confirm('Return to main menu? Your progress will be lost.')) {
-                currentGame = '';
-                currentLevel = 0;
-                responses = {};
-                score = 0;
-                
-                document.getElementById('gameScreen').classList.remove('active');
-                document.getElementById('startScreen').classList.add('active');
-                
-                playSound('start');
+            // Check if running in iframe (multiplayer mode)
+            if (window.parent !== window) {
+                // Send message to parent to reset session
+                if (confirm('Return to lobby? This will bring everyone back to select a new game.')) {
+                    window.parent.postMessage({ action: 'resetSession' }, '*');
+                }
+            } else {
+                // Single player mode - just return to menu locally
+                if (confirm('Return to main menu? Your progress will be lost.')) {
+                    currentGame = '';
+                    currentLevel = 0;
+                    responses = {};
+                    score = 0;
+                    
+                    document.getElementById('gameScreen').classList.remove('active');
+                    document.getElementById('startScreen').classList.add('active');
+                    
+                    playSound('start');
+                }
             }
         }
 
