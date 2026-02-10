@@ -246,7 +246,7 @@
                     </div>
 
                     <div class="warning">
-                        ⚠️ NOTE: This uses browser localStorage. All participants must use the SAME DEVICE or share the exported JSON file to sync responses.
+                        ⚠️ REAL-TIME SYNC: This version uses Firebase for instant synchronization across all devices. Everyone sees updates in real-time!
                     </div>
                 </div>
 
@@ -332,9 +332,37 @@
 
     <input type="file" id="importFile" style="display: none;" accept=".json" onchange="handleImport(event)">
 
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+
     <script>
+        // ⚠️ FIREBASE CONFIGURATION - REPLACE WITH YOUR OWN
+        // Get your config from: https://console.firebase.google.com/
+        const firebaseConfig = {
+            apiKey: "AIzaSyBoST2tp0rM5hyb16iGDtC-4c9IpHnTajA",
+            authDomain: "alpha-retro.firebaseapp.com",
+            databaseURL: "https://alpha-retro-default-rtdb.firebaseio.com",
+            projectId: "alpha-retro",
+            storageBucket: "alpha-retro.firebasestorage.app",
+            messagingSenderId: "54510928928",
+            appId: "1:54510928928:web:8d5546e7734c469ae6e845"
+};
+
+        // Initialize Firebase
+        let database;
+        try {
+            firebase.initializeApp(firebaseConfig);
+            database = firebase.database();
+            console.log('✅ Firebase initialized successfully');
+        } catch (error) {
+            console.error('❌ Firebase initialization error:', error);
+            alert('Firebase not configured! Please add your Firebase config. See console for details.');
+        }
+
         let currentSession = null;
         let currentPlayer = null;
+        let sessionListener = null;
 
         function showHostSetup() {
             document.getElementById('setupScreen').classList.remove('active');
@@ -360,21 +388,36 @@
                 return;
             }
             
+            if (!database) {
+                alert('Firebase not initialized! Please configure Firebase first.');
+                return;
+            }
+            
             currentSession = {
                 code: code,
                 host: name,
                 players: [{ name: name, isHost: true, responses: {} }],
                 gameType: null,
+                selectedGame: null,
                 responses: {},
                 createdAt: new Date().toISOString()
             };
             
             currentPlayer = { name: name, isHost: true };
             
-            localStorage.setItem('retroSession_' + code, JSON.stringify(currentSession));
-            localStorage.setItem('currentPlayer', JSON.stringify(currentPlayer));
-            
-            showLobby();
+            // Save to Firebase
+            database.ref('sessions/' + code).set(currentSession)
+                .then(() => {
+                    console.log('✅ Session created in Firebase');
+                    localStorage.setItem('currentPlayer', JSON.stringify(currentPlayer));
+                    localStorage.setItem('currentSessionCode', code);
+                    showLobby();
+                    listenToSession(code);
+                })
+                .catch((error) => {
+                    console.error('❌ Error creating session:', error);
+                    alert('Error creating session: ' + error.message);
+                });
         }
 
         function joinSession() {
@@ -386,27 +429,43 @@
                 return;
             }
             
-            const sessionData = localStorage.getItem('retroSession_' + code);
-            if (!sessionData) {
-                alert('Session not found! Check the code or ask host to export/share the session.');
+            if (!database) {
+                alert('Firebase not initialized! Please configure Firebase first.');
                 return;
             }
             
-            currentSession = JSON.parse(sessionData);
-            
-            // Check if player already exists
-            const existingPlayer = currentSession.players.find(p => p.name === name);
-            if (existingPlayer) {
-                currentPlayer = existingPlayer;
-            } else {
-                currentPlayer = { name: name, isHost: false, responses: {} };
-                currentSession.players.push(currentPlayer);
-                localStorage.setItem('retroSession_' + code, JSON.stringify(currentSession));
-            }
-            
-            localStorage.setItem('currentPlayer', JSON.stringify(currentPlayer));
-            
-            showLobby();
+            // Check if session exists in Firebase
+            database.ref('sessions/' + code).once('value')
+                .then((snapshot) => {
+                    if (!snapshot.exists()) {
+                        alert('Session not found! Check the code with your host.');
+                        return;
+                    }
+                    
+                    currentSession = snapshot.val();
+                    
+                    // Check if player already exists
+                    const existingPlayer = currentSession.players.find(p => p.name === name);
+                    if (existingPlayer) {
+                        currentPlayer = existingPlayer;
+                    } else {
+                        currentPlayer = { name: name, isHost: false, responses: {} };
+                        currentSession.players.push(currentPlayer);
+                        
+                        // Update Firebase with new player
+                        database.ref('sessions/' + code + '/players').set(currentSession.players);
+                    }
+                    
+                    localStorage.setItem('currentPlayer', JSON.stringify(currentPlayer));
+                    localStorage.setItem('currentSessionCode', code);
+                    
+                    showLobby();
+                    listenToSession(code);
+                })
+                .catch((error) => {
+                    console.error('❌ Error joining session:', error);
+                    alert('Error joining session: ' + error.message);
+                });
         }
 
         function showLobby() {
@@ -473,10 +532,15 @@
             }
             
             currentSession.selectedGame = gameType;
-            localStorage.setItem('retroSession_' + currentSession.code, JSON.stringify(currentSession));
             
-            playSound('coin');
-            showLobby();
+            // Update Firebase
+            database.ref('sessions/' + currentSession.code + '/selectedGame').set(gameType)
+                .then(() => {
+                    playSound('coin');
+                })
+                .catch((error) => {
+                    console.error('❌ Error updating game selection:', error);
+                });
         }
 
         function startMultiplayerGame() {
@@ -526,10 +590,11 @@
             link.click();
             URL.revokeObjectURL(url);
             
-            alert('Session exported! Share this file with your team members.');
+            alert('Session exported! This is a backup copy. All data is already synced in real-time via Firebase.');
         }
 
         function importSession() {
+            alert('Import is for backup restoration only. With Firebase, sessions sync automatically across all devices!');
             document.getElementById('importFile').click();
         }
 
@@ -541,9 +606,22 @@
             reader.onload = function(e) {
                 try {
                     const imported = JSON.parse(e.target.result);
-                    localStorage.setItem('retroSession_' + imported.code, e.target.result);
-                    alert(`Session ${imported.code} imported successfully! You can now join it.`);
-                    backToSetup();
+                    
+                    if (!database) {
+                        alert('Firebase not initialized! Cannot import session.');
+                        return;
+                    }
+                    
+                    // Import to Firebase
+                    database.ref('sessions/' + imported.code).set(imported)
+                        .then(() => {
+                            alert(`Session ${imported.code} imported to Firebase successfully! You can now join it.`);
+                            backToSetup();
+                        })
+                        .catch((error) => {
+                            console.error('❌ Error importing session:', error);
+                            alert('Error importing session: ' + error.message);
+                        });
                 } catch (error) {
                     alert('Invalid session file!');
                 }
@@ -553,30 +631,62 @@
 
         function leaveSession() {
             if (confirm('Are you sure you want to leave this session?')) {
+                // Stop listening to Firebase updates
+                if (sessionListener) {
+                    sessionListener.off();
+                    sessionListener = null;
+                }
+                
                 currentSession = null;
                 currentPlayer = null;
                 localStorage.removeItem('currentPlayer');
+                localStorage.removeItem('currentSessionCode');
                 backToSetup();
             }
+        }
+
+        // Real-time listener for session updates
+        function listenToSession(code) {
+            if (sessionListener) {
+                sessionListener.off();
+            }
+            
+            sessionListener = database.ref('sessions/' + code);
+            sessionListener.on('value', (snapshot) => {
+                if (snapshot.exists()) {
+                    currentSession = snapshot.val();
+                    showLobby();
+                } else {
+                    alert('Session has been deleted by the host.');
+                    leaveSession();
+                }
+            });
         }
 
         // Check if returning player
         window.onload = function() {
             const savedPlayer = localStorage.getItem('currentPlayer');
-            if (savedPlayer) {
+            const savedCode = localStorage.getItem('currentSessionCode');
+            
+            if (savedPlayer && savedCode && database) {
                 currentPlayer = JSON.parse(savedPlayer);
-                // Try to find their session
-                const keys = Object.keys(localStorage);
-                for (let key of keys) {
-                    if (key.startsWith('retroSession_')) {
-                        const session = JSON.parse(localStorage.getItem(key));
-                        if (session.players.some(p => p.name === currentPlayer.name)) {
-                            currentSession = session;
+                
+                // Try to rejoin the session from Firebase
+                database.ref('sessions/' + savedCode).once('value')
+                    .then((snapshot) => {
+                        if (snapshot.exists()) {
+                            currentSession = snapshot.val();
                             showLobby();
-                            return;
+                            listenToSession(savedCode);
+                        } else {
+                            // Session no longer exists
+                            localStorage.removeItem('currentPlayer');
+                            localStorage.removeItem('currentSessionCode');
                         }
-                    }
-                }
+                    })
+                    .catch((error) => {
+                        console.error('❌ Error checking session:', error);
+                    });
             }
         };
     </script>
