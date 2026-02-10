@@ -1,0 +1,1074 @@
+openapi: 3.0.0
+info:
+  title: Scoring System API
+  version: 1.0.0
+  description: |
+    REST API for the real-time scoring system used in educational quiz and game sessions.
+    Supports session management, player registration, answer submission, and leaderboard access.
+  contact:
+    name: API Support
+    email: support@scoringsystem.edu
+
+servers:
+  - url: https://api.scoringsystem.edu/v1
+    description: Production server
+  - url: https://staging-api.scoringsystem.edu/v1
+    description: Staging server
+  - url: http://localhost:8080/api/v1
+    description: Local development server
+
+tags:
+  - name: Sessions
+    description: Session lifecycle management
+  - name: Players
+    description: Player registration and management
+  - name: Answers
+    description: Answer submission and scoring
+  - name: Leaderboard
+    description: Leaderboard and rankings
+  - name: Reports
+    description: Analytics and reporting
+
+paths:
+  /sessions:
+    post:
+      tags:
+        - Sessions
+      summary: Create a new quiz session
+      operationId: createSession
+      description: |
+        Creates a new quiz session with a unique identifier. The session is initialized
+        in ACTIVE status and ready to accept player registrations.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                metadata:
+                  type: object
+                  description: Optional session metadata
+                  properties:
+                    title:
+                      type: string
+                      example: "Chapter 5 Quiz"
+                    description:
+                      type: string
+                      example: "Quiz on algebraic equations"
+                    instructorId:
+                      type: string
+                      example: "INST001"
+            examples:
+              basicSession:
+                summary: Basic session creation
+                value: {}
+              sessionWithMetadata:
+                summary: Session with metadata
+                value:
+                  metadata:
+                    title: "Chapter 5 Quiz"
+                    description: "Quiz on algebraic equations"
+                    instructorId: "INST001"
+              detailedSession:
+                summary: Session with full metadata
+                value:
+                  metadata:
+                    title: "Midterm Exam - Biology 101"
+                    description: "Comprehensive exam covering chapters 1-10"
+                    instructorId: "INST042"
+                    courseId: "BIO101"
+                    semester: "Spring 2026"
+                    maxParticipants: 50
+      responses:
+        '201':
+          description: Session created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionCreated'
+              examples:
+                basicSession:
+                  summary: Basic session created
+                  value:
+                    sessionId: "550e8400-e29b-41d4-a716-446655440000"
+                    status: "ACTIVE"
+                    startTime: "2026-02-09T10:30:00Z"
+                sessionWithMetadata:
+                  summary: Session with metadata created
+                  value:
+                    sessionId: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+                    status: "ACTIVE"
+                    startTime: "2026-02-09T14:15:30Z"
+                    metadata:
+                      title: "Chapter 5 Quiz"
+                      description: "Quiz on algebraic equations"
+                      instructorId: "INST001"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "INTERNAL_ERROR"
+                message: "Failed to generate session ID"
+                timestamp: "2026-02-09T10:30:00Z"
+
+  /sessions/{sessionId}/players:
+    post:
+      tags:
+        - Players
+      summary: Register a player in a session
+      operationId: registerPlayer
+      description: |
+        Registers a student in an active quiz session. The system verifies the student's
+        identity against the Student Database and initializes their score to 0.
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          description: Unique session identifier
+          schema:
+            type: string
+            format: uuid
+            example: "550e8400-e29b-41d4-a716-446655440000"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - studentId
+              properties:
+                studentId:
+                  type: string
+                  description: Student identification number (alphanumeric, 6-12 characters)
+                  pattern: '^[a-zA-Z0-9-]{6,12}$'
+                  example: "STU123456"
+            examples:
+              validStudent:
+                summary: Valid student registration
+                value:
+                  studentId: "STU123456"
+              studentWithHyphen:
+                summary: Student ID with hyphen
+                value:
+                  studentId: "STU-789012"
+              longerStudentId:
+                summary: Longer student ID
+                value:
+                  studentId: "STUDENT12345"
+      responses:
+        '201':
+          description: Player registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlayerState'
+              examples:
+                newPlayer:
+                  summary: New player registered
+                  value:
+                    studentId: "STU123456"
+                    name: "John Doe"
+                    score: 0
+                    streak: 0
+                anotherPlayer:
+                  summary: Another player registered
+                  value:
+                    studentId: "STU-789012"
+                    name: "Jane Smith"
+                    score: 0
+                    streak: 0
+        '400':
+          description: Bad request - invalid student ID format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "INVALID_INPUT"
+                message: "Invalid student ID format. Must be alphanumeric, 6-12 characters."
+                timestamp: "2026-02-09T10:30:00Z"
+        '404':
+          description: Session or student not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                sessionNotFound:
+                  value:
+                    code: "SESSION_NOT_FOUND"
+                    message: "Session with ID 550e8400-e29b-41d4-a716-446655440000 not found"
+                    timestamp: "2026-02-09T10:30:00Z"
+                studentNotFound:
+                  value:
+                    code: "STUDENT_NOT_FOUND"
+                    message: "Student ID STU123456 not found in database"
+                    timestamp: "2026-02-09T10:30:00Z"
+        '409':
+          description: Conflict - player already registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "DUPLICATE_PLAYER"
+                message: "Student STU123456 is already registered in this session"
+                timestamp: "2026-02-09T10:30:00Z"
+        '410':
+          description: Gone - session has ended
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "SESSION_ENDED"
+                message: "Cannot register players in an ended session"
+                timestamp: "2026-02-09T10:30:00Z"
+        '503':
+          description: Service unavailable - student database unreachable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "DATABASE_UNAVAILABLE"
+                message: "Student database is currently unavailable. Please try again."
+                timestamp: "2026-02-09T10:30:00Z"
+
+  /sessions/{sessionId}/answers:
+    post:
+      tags:
+        - Answers
+      summary: Submit an answer and update score
+      operationId: submitAnswer
+      description: |
+        Submits a student's answer to a quiz question. The system calculates the score
+        based on correctness, applies streak multipliers, and broadcasts updates to all
+        session participants in real-time.
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          description: Unique session identifier
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - studentId
+                - isCorrect
+                - basePoints
+              properties:
+                studentId:
+                  type: string
+                  description: Student identification number
+                  example: "STU123456"
+                isCorrect:
+                  type: boolean
+                  description: Whether the answer is correct
+                  example: true
+                basePoints:
+                  type: integer
+                  description: Base point value for the question
+                  minimum: 1
+                  maximum: 1000
+                  example: 10
+                questionId:
+                  type: string
+                  description: Optional question identifier for tracking
+                  example: "Q001"
+            examples:
+              correctAnswerNoStreak:
+                summary: Correct answer with no existing streak
+                value:
+                  studentId: "STU123456"
+                  isCorrect: true
+                  basePoints: 10
+                  questionId: "Q001"
+              correctAnswerWithStreak:
+                summary: Correct answer with existing streak
+                value:
+                  studentId: "STU789012"
+                  isCorrect: true
+                  basePoints: 15
+                  questionId: "Q002"
+              incorrectAnswer:
+                summary: Incorrect answer (resets streak)
+                value:
+                  studentId: "STU123456"
+                  isCorrect: false
+                  basePoints: 10
+                  questionId: "Q003"
+              highValueQuestion:
+                summary: High-value question
+                value:
+                  studentId: "STU345678"
+                  isCorrect: true
+                  basePoints: 50
+                  questionId: "Q010"
+      responses:
+        '200':
+          description: Answer processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScoreUpdate'
+              examples:
+                firstCorrectAnswer:
+                  summary: First correct answer (streak = 1, multiplier = 1.1x)
+                  value:
+                    studentId: "STU123456"
+                    newScore: 11
+                    newStreak: 1
+                    pointsAwarded: 11
+                    multiplierApplied: 1.1
+                secondCorrectAnswer:
+                  summary: Second correct answer (streak = 2, multiplier = 1.2x)
+                  value:
+                    studentId: "STU123456"
+                    newScore: 23
+                    newStreak: 2
+                    pointsAwarded: 12
+                    multiplierApplied: 1.2
+                incorrectAnswerResetStreak:
+                  summary: Incorrect answer (streak reset to 0)
+                  value:
+                    studentId: "STU123456"
+                    newScore: 23
+                    newStreak: 0
+                    pointsAwarded: 0
+                    multiplierApplied: 0.0
+                maxMultiplier:
+                  summary: Maximum multiplier (streak = 20, multiplier = 3.0x)
+                  value:
+                    studentId: "STU789012"
+                    newScore: 350
+                    newStreak: 20
+                    pointsAwarded: 30
+                    multiplierApplied: 3.0
+                highValueCorrect:
+                  summary: High-value question correct (50 base points)
+                  value:
+                    studentId: "STU345678"
+                    newScore: 105
+                    newStreak: 1
+                    pointsAwarded: 55
+                    multiplierApplied: 1.1
+        '400':
+          description: Bad request - invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Session or player not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                sessionNotFound:
+                  value:
+                    code: "SESSION_NOT_FOUND"
+                    message: "Session not found"
+                    timestamp: "2026-02-09T10:30:00Z"
+                playerNotFound:
+                  value:
+                    code: "PLAYER_NOT_FOUND"
+                    message: "Player not registered in this session"
+                    timestamp: "2026-02-09T10:30:00Z"
+        '410':
+          description: Gone - session has ended
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /sessions/{sessionId}/end:
+    post:
+      tags:
+        - Sessions
+      summary: End a quiz session
+      operationId: endSession
+      description: |
+        Ends an active quiz session, triggers data persistence, and broadcasts the
+        final leaderboard to all participants. Once ended, the session cannot accept
+        new registrations or score updates.
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          description: Unique session identifier
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                force:
+                  type: boolean
+                  description: Force end even if persistence fails
+                  default: false
+            examples:
+              normalEnd:
+                summary: Normal session end
+                value: {}
+              forceEnd:
+                summary: Force end session
+                value:
+                  force: true
+      responses:
+        '200':
+          description: Session ended successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionSummary'
+              examples:
+                smallSession:
+                  summary: Small session with 5 players
+                  value:
+                    sessionId: "550e8400-e29b-41d4-a716-446655440000"
+                    endTime: "2026-02-09T11:30:00Z"
+                    playerCount: 5
+                    finalLeaderboard:
+                      sessionId: "550e8400-e29b-41d4-a716-446655440000"
+                      rankings:
+                        - rank: 1
+                          studentId: "STU123456"
+                          name: "John Doe"
+                          score: 150
+                        - rank: 2
+                          studentId: "STU789012"
+                          name: "Jane Smith"
+                          score: 140
+                        - rank: 3
+                          studentId: "STU345678"
+                          name: "Bob Johnson"
+                          score: 135
+                        - rank: 4
+                          studentId: "STU901234"
+                          name: "Alice Williams"
+                          score: 120
+                        - rank: 5
+                          studentId: "STU567890"
+                          name: "Charlie Brown"
+                          score: 95
+                    statistics:
+                      averageScore: 128.0
+                      highestScore: 150
+                      lowestScore: 95
+                largeSession:
+                  summary: Large session with statistics
+                  value:
+                    sessionId: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+                    endTime: "2026-02-09T15:45:00Z"
+                    playerCount: 50
+                    finalLeaderboard:
+                      sessionId: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+                      rankings:
+                        - rank: 1
+                          studentId: "STU111111"
+                          name: "Top Student"
+                          score: 285
+                        - rank: 2
+                          studentId: "STU222222"
+                          name: "Second Place"
+                          score: 270
+                        - rank: 3
+                          studentId: "STU333333"
+                          name: "Third Place"
+                          score: 265
+                    statistics:
+                      averageScore: 178.5
+                      highestScore: 285
+                      lowestScore: 45
+        '404':
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict - session already ended
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error - persistence failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "PERSISTENCE_FAILED"
+                message: "Failed to save session results after 3 attempts"
+                details:
+                  retryCount: 3
+                  lastError: "Database connection timeout"
+                timestamp: "2026-02-09T10:30:00Z"
+
+  /sessions/{sessionId}/players/bulk:
+    post:
+      tags:
+        - Players
+      summary: Register multiple players at once
+      operationId: registerPlayersBulk
+      description: |
+        Registers multiple students in a session simultaneously. Useful for pre-registering
+        a class roster. Returns success/failure status for each student.
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - studentIds
+              properties:
+                studentIds:
+                  type: array
+                  description: List of student IDs to register
+                  minItems: 1
+                  maxItems: 200
+                  items:
+                    type: string
+                    pattern: '^[a-zA-Z0-9-]{6,12}$'
+                  example: ["STU123456", "STU789012", "STU345678"]
+            examples:
+              smallClass:
+                summary: Small class (5 students)
+                value:
+                  studentIds:
+                    - "STU123456"
+                    - "STU789012"
+                    - "STU345678"
+                    - "STU901234"
+                    - "STU567890"
+              mediumClass:
+                summary: Medium class (15 students)
+                value:
+                  studentIds:
+                    - "STU001"
+                    - "STU002"
+                    - "STU003"
+                    - "STU004"
+                    - "STU005"
+                    - "STU006"
+                    - "STU007"
+                    - "STU008"
+                    - "STU009"
+                    - "STU010"
+                    - "STU011"
+                    - "STU012"
+                    - "STU013"
+                    - "STU014"
+                    - "STU015"
+      responses:
+        '200':
+          description: Bulk registration completed (check individual results)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  successful:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PlayerState'
+                  failed:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        studentId:
+                          type: string
+                        error:
+                          $ref: '#/components/schemas/Error'
+                  summary:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                      succeeded:
+                        type: integer
+                      failed:
+                        type: integer
+              examples:
+                allSuccessful:
+                  summary: All registrations successful
+                  value:
+                    successful:
+                      - studentId: "STU123456"
+                        name: "John Doe"
+                        score: 0
+                        streak: 0
+                      - studentId: "STU789012"
+                        name: "Jane Smith"
+                        score: 0
+                        streak: 0
+                      - studentId: "STU345678"
+                        name: "Bob Johnson"
+                        score: 0
+                        streak: 0
+                    failed: []
+                    summary:
+                      total: 3
+                      succeeded: 3
+                      failed: 0
+                partialSuccess:
+                  summary: Some registrations failed
+                  value:
+                    successful:
+                      - studentId: "STU123456"
+                        name: "John Doe"
+                        score: 0
+                        streak: 0
+                      - studentId: "STU789012"
+                        name: "Jane Smith"
+                        score: 0
+                        streak: 0
+                    failed:
+                      - studentId: "STU999999"
+                        error:
+                          code: "STUDENT_NOT_FOUND"
+                          message: "Student ID STU999999 not found in database"
+                          timestamp: "2026-02-09T10:30:00Z"
+                      - studentId: "STU-INVALID"
+                        error:
+                          code: "INVALID_INPUT"
+                          message: "Invalid student ID format"
+                          timestamp: "2026-02-09T10:30:00Z"
+                    summary:
+                      total: 4
+                      succeeded: 2
+                      failed: 2
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    SessionCreated:
+      type: object
+      required:
+        - sessionId
+        - status
+        - startTime
+      properties:
+        sessionId:
+          type: string
+          format: uuid
+          description: Unique session identifier
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        status:
+          type: string
+          enum: [ACTIVE, ENDED]
+          description: Current session status
+          example: "ACTIVE"
+        startTime:
+          type: string
+          format: date-time
+          description: Session start timestamp (ISO 8601)
+          example: "2026-02-09T10:30:00Z"
+        metadata:
+          type: object
+          description: Optional session metadata
+          additionalProperties: true
+          example:
+            title: "Chapter 5 Quiz"
+            description: "Quiz on algebraic equations"
+            instructorId: "INST001"
+
+    PlayerState:
+      type: object
+      required:
+        - studentId
+        - name
+        - score
+        - streak
+      properties:
+        studentId:
+          type: string
+          description: Student identification number
+          example: "STU123456"
+        name:
+          type: string
+          description: Student name from database
+          example: "John Doe"
+        score:
+          type: integer
+          description: Current score (non-negative)
+          minimum: 0
+          example: 75
+        streak:
+          type: integer
+          description: Current streak of consecutive correct answers
+          minimum: 0
+          example: 3
+
+    ScoreUpdate:
+      type: object
+      required:
+        - studentId
+        - newScore
+        - newStreak
+        - pointsAwarded
+        - multiplierApplied
+      properties:
+        studentId:
+          type: string
+          description: Student identification number
+          example: "STU123456"
+        newScore:
+          type: integer
+          description: Updated total score
+          example: 88
+        newStreak:
+          type: integer
+          description: Updated streak count
+          example: 4
+        pointsAwarded:
+          type: integer
+          description: Points awarded for this answer
+          example: 13
+        multiplierApplied:
+          type: number
+          format: double
+          description: Multiplier applied (1.0 to 3.0)
+          minimum: 0.0
+          maximum: 3.0
+          example: 1.3
+
+    SessionSummary:
+      type: object
+      required:
+        - sessionId
+        - endTime
+        - playerCount
+        - finalLeaderboard
+      properties:
+        sessionId:
+          type: string
+          format: uuid
+          description: Unique session identifier
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        endTime:
+          type: string
+          format: date-time
+          description: Session end timestamp
+          example: "2026-02-09T11:30:00Z"
+        playerCount:
+          type: integer
+          description: Total number of participants
+          example: 25
+        finalLeaderboard:
+          $ref: '#/components/schemas/Leaderboard'
+        statistics:
+          type: object
+          description: Session statistics
+          properties:
+            averageScore:
+              type: number
+              format: double
+              example: 78.5
+            highestScore:
+              type: integer
+              example: 150
+            lowestScore:
+              type: integer
+              example: 12
+            medianScore:
+              type: number
+              format: double
+              example: 75.0
+            participationRate:
+              type: number
+              format: double
+              description: Percentage of registered players who participated
+              example: 96.0
+          example:
+            averageScore: 78.5
+            highestScore: 150
+            lowestScore: 12
+            medianScore: 75.0
+            participationRate: 96.0
+
+    Leaderboard:
+      type: object
+      required:
+        - sessionId
+        - rankings
+      properties:
+        sessionId:
+          type: string
+          format: uuid
+          description: Session identifier
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        rankings:
+          type: array
+          description: Sorted list of player rankings
+          items:
+            $ref: '#/components/schemas/LeaderboardEntry'
+          example:
+            - rank: 1
+              studentId: "STU123456"
+              name: "John Doe"
+              score: 150
+            - rank: 2
+              studentId: "STU789012"
+              name: "Jane Smith"
+              score: 140
+            - rank: 3
+              studentId: "STU345678"
+              name: "Bob Johnson"
+              score: 135
+
+    LeaderboardEntry:
+      type: object
+      required:
+        - rank
+        - studentId
+        - name
+        - score
+      properties:
+        rank:
+          type: integer
+          description: Player rank (1 = highest)
+          minimum: 1
+          example: 1
+        studentId:
+          type: string
+          description: Student identification number
+          example: "STU123456"
+        name:
+          type: string
+          description: Student name
+          example: "John Doe"
+        score:
+          type: integer
+          description: Final score
+          example: 150
+
+    Error:
+      type: object
+      required:
+        - code
+        - message
+        - timestamp
+      properties:
+        code:
+          type: string
+          description: Error code
+          enum:
+            - SESSION_NOT_FOUND
+            - SESSION_ENDED
+            - PLAYER_NOT_FOUND
+            - DUPLICATE_PLAYER
+            - STUDENT_NOT_FOUND
+            - DATABASE_UNAVAILABLE
+            - INVALID_INPUT
+            - PERSISTENCE_FAILED
+          example: "SESSION_NOT_FOUND"
+        message:
+          type: string
+          description: Human-readable error message
+          example: "Session not found"
+        details:
+          type: object
+          description: Additional error details
+          additionalProperties: true
+        timestamp:
+          type: string
+          format: date-time
+          description: Error timestamp
+          example: "2026-02-09T10:30:00Z"
+
+    SessionReport:
+      type: object
+      properties:
+        reportId:
+          type: string
+          format: uuid
+        generatedAt:
+          type: string
+          format: date-time
+        sessions:
+          type: array
+          items:
+            type: object
+            properties:
+              sessionId:
+                type: string
+                format: uuid
+              startTime:
+                type: string
+                format: date-time
+              endTime:
+                type: string
+                format: date-time
+              participantCount:
+                type: integer
+              averageScore:
+                type: number
+              statistics:
+                type: object
+                properties:
+                  highestScore:
+                    type: integer
+                  lowestScore:
+                    type: integer
+                  medianScore:
+                    type: number
+                  standardDeviation:
+                    type: number
+              topPerformers:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LeaderboardEntry'
+
+    StudentReport:
+      type: object
+      properties:
+        studentId:
+          type: string
+        name:
+          type: string
+        reportPeriod:
+          type: object
+          properties:
+            from:
+              type: string
+              format: date
+            to:
+              type: string
+              format: date
+        sessionsParticipated:
+          type: integer
+        overallStatistics:
+          type: object
+          properties:
+            averageScore:
+              type: number
+            highestScore:
+              type: integer
+            lowestScore:
+              type: integer
+            averageStreak:
+              type: number
+            longestStreak:
+              type: integer
+            totalPointsEarned:
+              type: integer
+        performanceTrend:
+          type: string
+          enum: [IMPROVING, STABLE, DECLINING]
+        sessionDetails:
+          type: array
+          items:
+            type: object
+            properties:
+              sessionId:
+                type: string
+                format: uuid
+              date:
+                type: string
+                format: date-time
+              score:
+                type: integer
+              rank:
+                type: integer
+              participantCount:
+                type: integer
+
+    TrendAnalysis:
+      type: object
+      properties:
+        analysisType:
+          type: string
+        period:
+          type: object
+          properties:
+            from:
+              type: string
+              format: date
+            to:
+              type: string
+              format: date
+        dataPoints:
+          type: array
+          items:
+            type: object
+            properties:
+              timestamp:
+                type: string
+                format: date-time
+              value:
+                type: number
+              label:
+                type: string
+        insights:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+                enum: [POSITIVE, NEGATIVE, NEUTRAL]
+              message:
+                type: string
+              confidence:
+                type: number
+                minimum: 0
+                maximum: 1
+        recommendations:
+          type: array
+          items:
+            type: string
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token for authentication
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key for service-to-service authentication
+
+security:
+  - BearerAuth: []
+  - ApiKeyAuth: []

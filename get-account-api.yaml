@@ -1,0 +1,50 @@
+openapi: 3.0.0
+info:
+  title: Account API
+  version: 1.0.0
+  description: API for retrieving account information
+
+paths:
+  /get-account:
+    post:
+      summary: Get account details
+      operationId: getAccount
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - customerNumber
+                - accountNumber
+              properties:
+                customerNumber:
+                  type: string
+                  description: Customer identification number
+                  example: "CUST12345"
+                accountNumber:
+                  type: string
+                  description: Account identification number
+                  example: "ACC987654321"
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accountAmount:
+                    type: number
+                    format: double
+                    description: Account balance amount
+                    example: 15750.50
+                  currency:
+                    type: string
+                    description: Currency code (e.g., USD, EUR)
+                    example: "USD"
+        '400':
+          description: Bad request - missing or invalid parameters
+        '404':
+          description: Account not found

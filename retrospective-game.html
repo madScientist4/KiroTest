@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sprint Retrospective Game 🎮</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 900px;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .screen {
+            display: none;
+        }
+
+        .screen.active {
+            display: block;
+            animation: fadeIn 0.5s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .game-mode {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+
+        .mode-card {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+            text-align: center;
+        }
+
+        .mode-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+
+        .mode-card.blue {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+
+        .mode-card.green {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        }
+
+        .mode-card.orange {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        }
+
+        .mode-card h3 {
+            font-size: 1.8em;
+            margin-bottom: 15px;
+        }
+
+        .mode-card p {
+            font-size: 1em;
+            opacity: 0.9;
+        }
+
+        .question-card {
+            background: #f8f9fa;
+            border-left: 5px solid #667eea;
+            padding: 25px;
+            margin: 20px 0;
+            border-radius: 10px;
+            animation: slideIn 0.5s;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .question-card h3 {
+            color: #667eea;
+            font-size: 1.5em;
+            margin-bottom: 15px;
+        }
+
+        .input-area {
+            width: 100%;
+            min-height: 120px;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1em;
+            font-family: inherit;
+            resize: vertical;
+            transition: border-color 0.3s;
+        }
+
+        .input-area:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.1em;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+            margin: 10px 5px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #868f96 0%, #596164 100%);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        }
+
+        .progress-bar {
+            background: #e0e0e0;
+            height: 10px;
+            border-radius: 10px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100%;
+            transition: width 0.5s;
+        }
+
+        .response-list {
+            margin: 20px 0;
+        }
+
+        .response-item {
+            background: white;
+            border: 2px solid #e0e0e0;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 10px;
+            animation: fadeIn 0.5s;
+        }
+
+        .response-item h4 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .response-item p {
+            color: #555;
+            line-height: 1.6;
+        }
+
+        .emoji-rating {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin: 30px 0;
+        }
+
+        .emoji-btn {
+            font-size: 3em;
+            cursor: pointer;
+            transition: transform 0.3s;
+            padding: 10px;
+            border-radius: 50%;
+        }
+
+        .emoji-btn:hover {
+            transform: scale(1.2);
+        }
+
+        .emoji-btn.selected {
+            background: #667eea;
+            transform: scale(1.3);
+        }
+
+        .summary-section {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .summary-section h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .action-items {
+            list-style: none;
+        }
+
+        .action-items li {
+            background: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border-left: 4px solid #43e97b;
+        }
+
+        .timer {
+            text-align: center;
+            font-size: 2em;
+            color: #667eea;
+            margin: 20px 0;
+            font-weight: bold;
+        }
+
+        .celebration {
+            text-align: center;
+            font-size: 4em;
+            margin: 30px 0;
+            animation: bounce 1s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+
+        .btn-group {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.8em;
+            }
+            
+            .mode-card {
+                padding: 20px;
+            }
+            
+            .emoji-btn {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎮 Sprint Retrospective Game</h1>
+            <p>Make retrospectives fun and engaging!</p>
+        </div>
+
+        <div class="content">
+            <!-- Welcome Screen -->
+            <div id="welcome" class="screen active">
+                <h2 style="text-align: center; margin-bottom: 30px;">Choose Your Retrospective Style</h2>
+                <div class="game-mode">
+                    <div class="mode-card" onclick="startGame('starfish')">
+                        <h3>⭐ Starfish</h3>
+                        <p>Start, Stop, Continue, More, Less</p>
+                    </div>
+                    <div class="mode-card blue" onclick="startGame('sailboat')">
+                        <h3>⛵ Sailboat</h3>
+                        <p>Wind, Anchor, Rocks, Island</p>
+                    </div>
+                    <div class="mode-card green" onclick="startGame('4ls')">
+                        <h3>💚 4 L's</h3>
+                        <p>Liked, Learned, Lacked, Longed For</p>
+                    </div>
+                    <div class="mode-card orange" onclick="startGame('madglad')">
+                        <h3>😊 Mad, Sad, Glad</h3>
+                        <p>Express emotions about the sprint</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Game Screen -->
+            <div id="game" class="screen">
+                <div class="progress-bar">
+                    <div id="progress" class="progress-fill" style="width: 0%"></div>
+                </div>
+                
+                <div id="questionContainer"></div>
+                
+                <div class="btn-group">
+                    <button class="btn btn-secondary" onclick="previousQuestion()">← Previous</button>
+                    <button class="btn" onclick="nextQuestion()">Next →</button>
+                </div>
+            </div>
+
+            <!-- Summary Screen -->
+            <div id="summary" class="screen">
+                <div class="celebration">🎉</div>
+                <h2 style="text-align: center; margin-bottom: 30px;">Retrospective Complete!</h2>
+                
+                <div id="summaryContent"></div>
+                
+                <div class="btn-group">
+                    <button class="btn btn-success" onclick="downloadSummary()">📥 Download Summary</button>
+                    <button class="btn" onclick="restartGame()">🔄 New Retrospective</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentMode = '';
+        let currentQuestion = 0;
+        let responses = {};
+        
+        const retrospectiveModes = {
+            starfish: {
+                name: 'Starfish Retrospective',
+                questions: [
+                    { id: 'start', title: '🚀 Start Doing', prompt: 'What should we start doing that we are not doing now?' },
+                    { id: 'stop', title: '🛑 Stop Doing', prompt: 'What should we stop doing that is not helping us?' },
+                    { id: 'continue', title: '✅ Continue Doing', prompt: 'What is working well that we should keep doing?' },
+                    { id: 'more', title: '📈 Do More Of', prompt: 'What should we do more of to improve?' },
+                    { id: 'less', title: '📉 Do Less Of', prompt: 'What should we reduce or do less frequently?' }
+                ]
+            },
+            sailboat: {
+                name: 'Sailboat Retrospective',
+                questions: [
+                    { id: 'wind', title: '💨 Wind (What helped us move forward)', prompt: 'What gave us momentum and helped us progress?' },
+                    { id: 'anchor', title: '⚓ Anchor (What held us back)', prompt: 'What slowed us down or prevented progress?' },
+                    { id: 'rocks', title: '🪨 Rocks (Risks ahead)', prompt: 'What potential problems or risks do we see coming?' },
+                    { id: 'island', title: '🏝️ Island (Our goal)', prompt: 'What is our vision? Where do we want to be?' }
+                ]
+            },
+            '4ls': {
+                name: '4 L\'s Retrospective',
+                questions: [
+                    { id: 'liked', title: '💚 Liked', prompt: 'What did you enjoy or appreciate during this sprint?' },
+                    { id: 'learned', title: '📚 Learned', prompt: 'What new things did you learn?' },
+                    { id: 'lacked', title: '❌ Lacked', prompt: 'What was missing or what did we need more of?' },
+                    { id: 'longed', title: '🌟 Longed For', prompt: 'What do you wish we had or could do?' }
+                ]
+            },
+            madglad: {
+                name: 'Mad, Sad, Glad Retrospective',
+                questions: [
+                    { id: 'mad', title: '😠 Mad', prompt: 'What frustrated you or made you angry?' },
+                    { id: 'sad', title: '😢 Sad', prompt: 'What disappointed you or made you feel down?' },
+                    { id: 'glad', title: '😊 Glad', prompt: 'What made you happy or proud?' },
+                    { id: 'rating', title: '⭐ Sprint Rating', prompt: 'How would you rate this sprint overall?', type: 'emoji' }
+                ]
+            }
+        };
+
+        function startGame(mode) {
+            currentMode = mode;
+            currentQuestion = 0;
+            responses = {};
+            
+            document.getElementById('welcome').classList.remove('active');
+            document.getElementById('game').classList.add('active');
+            
+            showQuestion();
+        }
+
+        function showQuestion() {
+            const mode = retrospectiveModes[currentMode];
+            const question = mode.questions[currentQuestion];
+            
+            const container = document.getElementById('questionContainer');
+            
+            if (question.type === 'emoji') {
+                container.innerHTML = `
+                    <div class="question-card">
+                        <h3>${question.title}</h3>
+                        <p>${question.prompt}</p>
+                        <div class="emoji-rating">
+                            <span class="emoji-btn" onclick="selectEmoji('😢', '${question.id}')">😢</span>
+                            <span class="emoji-btn" onclick="selectEmoji('😐', '${question.id}')">😐</span>
+                            <span class="emoji-btn" onclick="selectEmoji('🙂', '${question.id}')">🙂</span>
+                            <span class="emoji-btn" onclick="selectEmoji('😊', '${question.id}')">😊</span>
+                            <span class="emoji-btn" onclick="selectEmoji('🤩', '${question.id}')">🤩</span>
+                        </div>
+                    </div>
+                `;
+            } else {
+                const savedResponse = responses[question.id] || '';
+                container.innerHTML = `
+                    <div class="question-card">
+                        <h3>${question.title}</h3>
+                        <p>${question.prompt}</p>
+                        <textarea 
+                            class="input-area" 
+                            id="response-${question.id}"
+                            placeholder="Share your thoughts here..."
+                        >${savedResponse}</textarea>
+                    </div>
+                `;
+            }
+            
+            updateProgress();
+        }
+
+        function selectEmoji(emoji, questionId) {
+            responses[questionId] = emoji;
+            
+            document.querySelectorAll('.emoji-btn').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            
+            event.target.classList.add('selected');
+        }
+
+        function saveCurrentResponse() {
+            const mode = retrospectiveModes[currentMode];
+            const question = mode.questions[currentQuestion];
+            
+            if (question.type !== 'emoji') {
+                const textarea = document.getElementById(`response-${question.id}`);
+                if (textarea) {
+                    responses[question.id] = textarea.value;
+                }
+            }
+        }
+
+        function nextQuestion() {
+            saveCurrentResponse();
+            
+            const mode = retrospectiveModes[currentMode];
+            
+            if (currentQuestion < mode.questions.length - 1) {
+                currentQuestion++;
+                showQuestion();
+            } else {
+                showSummary();
+            }
+        }
+
+        function previousQuestion() {
+            saveCurrentResponse();
+            
+            if (currentQuestion > 0) {
+                currentQuestion--;
+                showQuestion();
+            }
+        }
+
+        function updateProgress() {
+            const mode = retrospectiveModes[currentMode];
+            const progress = ((currentQuestion + 1) / mode.questions.length) * 100;
+            document.getElementById('progress').style.width = progress + '%';
+        }
+
+        function showSummary() {
+            document.getElementById('game').classList.remove('active');
+            document.getElementById('summary').classList.add('active');
+            
+            const mode = retrospectiveModes[currentMode];
+            const summaryContent = document.getElementById('summaryContent');
+            
+            let html = `<h3 style="text-align: center; color: #667eea; margin-bottom: 30px;">${mode.name}</h3>`;
+            
+            mode.questions.forEach(question => {
+                const response = responses[question.id] || 'No response provided';
+                html += `
+                    <div class="response-item">
+                        <h4>${question.title}</h4>
+                        <p>${response}</p>
+                    </div>
+                `;
+            });
+            
+            html += `
+                <div class="summary-section">
+                    <h3>🎯 Action Items</h3>
+                    <p style="margin-bottom: 15px;">Based on this retrospective, consider these next steps:</p>
+                    <ul class="action-items">
+                        <li>Review and prioritize the feedback with the team</li>
+                        <li>Create concrete action items for improvement areas</li>
+                        <li>Assign owners to each action item</li>
+                        <li>Schedule follow-up to track progress</li>
+                        <li>Celebrate the wins and positive feedback!</li>
+                    </ul>
+                </div>
+            `;
+            
+            summaryContent.innerHTML = html;
+        }
+
+        function downloadSummary() {
+            const mode = retrospectiveModes[currentMode];
+            let content = `${mode.name}\n`;
+            content += `Date: ${new Date().toLocaleDateString()}\n`;
+            content += `${'='.repeat(50)}\n\n`;
+            
+            mode.questions.forEach(question => {
+                content += `${question.title}\n`;
+                content += `${'-'.repeat(question.title.length)}\n`;
+                content += `${responses[question.id] || 'No response provided'}\n\n`;
+            });
+            
+            content += `\nAction Items:\n`;
+            content += `- Review and prioritize the feedback with the team\n`;
+            content += `- Create concrete action items for improvement areas\n`;
+            content += `- Assign owners to each action item\n`;
+            content += `- Schedule follow-up to track progress\n`;
+            content += `- Celebrate the wins and positive feedback!\n`;
+            
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `retrospective-${currentMode}-${new Date().toISOString().split('T')[0]}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function restartGame() {
+            currentMode = '';
+            currentQuestion = 0;
+            responses = {};
+            
+            document.getElementById('summary').classList.remove('active');
+            document.getElementById('welcome').classList.add('active');
+        }
+    </script>
+</body>
+</html>

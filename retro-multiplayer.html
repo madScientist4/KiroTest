@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🕹️ MULTIPLAYER RETRO RETROSPECTIVE</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Press Start 2P', cursive;
+            background: #000;
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .scanlines {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 0, 0, 0.15),
+                rgba(0, 0, 0, 0.15) 1px,
+                transparent 1px,
+                transparent 2px
+            );
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        .arcade-cabinet {
+            background: linear-gradient(180deg, #1a1a2e 0%, #0f0f1e 100%);
+            border: 8px solid #ff006e;
+            border-radius: 20px;
+            box-shadow: 
+                0 0 20px #ff006e,
+                0 0 40px #ff006e;
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        .screen-bezel {
+            background: #000;
+            border: 6px solid #333;
+            margin: 20px;
+            border-radius: 10px;
+        }
+
+        .header {
+            background: linear-gradient(180deg, #ff006e 0%, #8b0042 100%);
+            padding: 30px;
+            text-align: center;
+            border-bottom: 4px solid #00ffff;
+        }
+
+        .title {
+            font-size: 1.5em;
+            color: #ffff00;
+            text-shadow: 
+                3px 3px 0 #ff006e,
+                6px 6px 0 #00ffff;
+            margin-bottom: 15px;
+        }
+
+        .subtitle {
+            font-size: 0.6em;
+            color: #00ffff;
+        }
+
+        .content {
+            padding: 40px;
+            min-height: 500px;
+        }
+
+        .screen {
+            display: none;
+        }
+
+        .screen.active {
+            display: block;
+            animation: fadeIn 0.5s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .info-box {
+            background: #1a1a2e;
+            border: 3px solid #00ffff;
+            padding: 30px;
+            margin: 20px 0;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .info-box h2 {
+            color: #ffff00;
+            font-size: 1.2em;
+            margin-bottom: 20px;
+        }
+
+        .info-box p {
+            color: #00ffff;
+            font-size: 0.7em;
+            line-height: 1.8;
+            margin: 15px 0;
+        }
+
+        .pixel-button {
+            background: #ff006e;
+            color: #ffff00;
+            border: 4px solid #ffff00;
+            padding: 15px 30px;
+            font-family: 'Press Start 2P', cursive;
+            font-size: 0.8em;
+            cursor: pointer;
+            transition: all 0.1s;
+            box-shadow: 4px 4px 0 #000;
+            margin: 10px;
+        }
+
+        .pixel-button:hover {
+            background: #ffff00;
+            color: #ff006e;
+            transform: translate(2px, 2px);
+            box-shadow: 2px 2px 0 #000;
+        }
+
+        .retro-input {
+            background: #000;
+            color: #00ff00;
+            border: 3px solid #00ff00;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 1em;
+            width: 100%;
+            max-width: 400px;
+            margin: 20px auto;
+            display: block;
+        }
+
+        .retro-input:focus {
+            outline: none;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
+        }
+
+        .instructions {
+            background: #2d2d44;
+            border-left: 5px solid #ffff00;
+            padding: 20px;
+            margin: 20px 0;
+            font-size: 0.6em;
+            line-height: 1.8;
+            color: #00ffff;
+        }
+
+        .instructions h3 {
+            color: #ffff00;
+            margin-bottom: 15px;
+        }
+
+        .instructions ol {
+            margin-left: 20px;
+        }
+
+        .instructions li {
+            margin: 10px 0;
+        }
+
+        .warning {
+            background: #ff006e;
+            color: #ffff00;
+            padding: 15px;
+            margin: 20px 0;
+            border: 3px solid #ffff00;
+            font-size: 0.6em;
+            text-align: center;
+        }
+
+        @media (max-width: 768px) {
+            .title {
+                font-size: 1em;
+            }
+            
+            .pixel-button {
+                font-size: 0.6em;
+                padding: 12px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="scanlines"></div>
+
+    <div class="arcade-cabinet">
+        <div class="screen-bezel">
+            <div class="header">
+                <div class="title">MULTIPLAYER RETRO RETROSPECTIVE</div>
+                <div class="subtitle">COLLABORATIVE TEAM FEEDBACK</div>
+            </div>
+
+            <div class="content">
+                <div id="setupScreen" class="screen active">
+                    <div class="info-box">
+                        <h2>🎮 SETUP MULTIPLAYER SESSION</h2>
+                        <p>Choose how you want to collaborate with your team</p>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin: 30px 0;">
+                        <div class="info-box" style="cursor: pointer;" onclick="showHostSetup()">
+                            <h2>🏠 HOST SESSION</h2>
+                            <p>Start a new retrospective and invite your team</p>
+                            <button class="pixel-button">HOST</button>
+                        </div>
+
+                        <div class="info-box" style="cursor: pointer;" onclick="showJoinSetup()">
+                            <h2>🔗 JOIN SESSION</h2>
+                            <p>Join an existing retrospective with a session code</p>
+                            <button class="pixel-button">JOIN</button>
+                        </div>
+                    </div>
+
+                    <div class="instructions">
+                        <h3>HOW IT WORKS</h3>
+                        <ol>
+                            <li><strong>HOST</strong> creates a session and shares the session code</li>
+                            <li><strong>TEAM MEMBERS</strong> join using the code</li>
+                            <li><strong>EVERYONE</strong> submits their responses independently</li>
+                            <li><strong>HOST</strong> can view all responses and export summary</li>
+                        </ol>
+                    </div>
+
+                    <div class="warning">
+                        ⚠️ NOTE: This uses browser localStorage. All participants must use the SAME DEVICE or share the exported JSON file to sync responses.
+                    </div>
+                </div>
+
+                <div id="hostScreen" class="screen">
+                    <div class="info-box">
+                        <h2>🏠 HOST A SESSION</h2>
+                        <p>Enter your name and create a session code</p>
+                        
+                        <input type="text" id="hostName" class="retro-input" placeholder="YOUR NAME" maxlength="20">
+                        <input type="text" id="sessionCode" class="retro-input" placeholder="SESSION CODE (e.g., RETRO2024)" maxlength="15">
+                        
+                        <div style="margin-top: 30px;">
+                            <button class="pixel-button" onclick="createSession()">CREATE SESSION</button>
+                            <button class="pixel-button" style="background: #666;" onclick="backToSetup()">BACK</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="joinScreen" class="screen">
+                    <div class="info-box">
+                        <h2>🔗 JOIN A SESSION</h2>
+                        <p>Enter your name and the session code from your host</p>
+                        
+                        <input type="text" id="joinName" class="retro-input" placeholder="YOUR NAME" maxlength="20">
+                        <input type="text" id="joinCode" class="retro-input" placeholder="SESSION CODE" maxlength="15">
+                        
+                        <div style="margin-top: 30px;">
+                            <button class="pixel-button" onclick="joinSession()">JOIN SESSION</button>
+                            <button class="pixel-button" style="background: #666;" onclick="backToSetup()">BACK</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="lobbyScreen" class="screen">
+                    <div class="info-box">
+                        <h2 id="lobbyTitle">🎮 SESSION LOBBY</h2>
+                        <p id="sessionInfo"></p>
+                        
+                        <div id="playersList" style="margin: 30px 0;"></div>
+                        
+                        <div id="gameSelection" style="display: none; margin: 30px 0;">
+                            <div style="color: #ffff00; font-size: 0.9em; margin-bottom: 20px;">
+                                SELECT GAME MODE
+                            </div>
+                            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
+                                <button class="pixel-button" onclick="selectGame('pacman')" style="font-size: 0.6em;">
+                                    🟡 PAC-RETRO
+                                </button>
+                                <button class="pixel-button" onclick="selectGame('mario')" style="font-size: 0.6em;">
+                                    🍄 SUPER SPRINT
+                                </button>
+                                <button class="pixel-button" onclick="selectGame('spaceinvaders')" style="font-size: 0.6em;">
+                                    👾 SPACE RETRO
+                                </button>
+                                <button class="pixel-button" onclick="selectGame('tetris')" style="font-size: 0.6em;">
+                                    🟦 TETRO-SPECT
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div id="selectedGameDisplay" style="display: none; margin: 30px 0;">
+                            <div style="background: #000; border: 3px solid #ffff00; padding: 20px; border-radius: 10px;">
+                                <div style="color: #ffff00; font-size: 0.8em; margin-bottom: 10px;">SELECTED GAME</div>
+                                <div id="selectedGameName" style="color: #00ffff; font-size: 1em;"></div>
+                            </div>
+                        </div>
+                        
+                        <div style="margin-top: 30px;">
+                            <button class="pixel-button" id="startGameBtn" onclick="startMultiplayerGame()" style="display: none;">START GAME</button>
+                            <button class="pixel-button" onclick="exportSession()">📤 EXPORT</button>
+                            <button class="pixel-button" onclick="importSession()">📥 IMPORT</button>
+                            <button class="pixel-button" style="background: #666;" onclick="leaveSession()">LEAVE</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="gameScreen" class="screen">
+                    <iframe id="gameFrame" style="width: 100%; height: 600px; border: none;"></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <input type="file" id="importFile" style="display: none;" accept=".json" onchange="handleImport(event)">
+
+    <script>
+        let currentSession = null;
+        let currentPlayer = null;
+
+        function showHostSetup() {
+            document.getElementById('setupScreen').classList.remove('active');
+            document.getElementById('hostScreen').classList.add('active');
+        }
+
+        function showJoinSetup() {
+            document.getElementById('setupScreen').classList.remove('active');
+            document.getElementById('joinScreen').classList.add('active');
+        }
+
+        function backToSetup() {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById('setupScreen').classList.add('active');
+        }
+
+        function createSession() {
+            const name = document.getElementById('hostName').value.trim();
+            const code = document.getElementById('sessionCode').value.trim().toUpperCase();
+            
+            if (!name || !code) {
+                alert('Please enter both name and session code!');
+                return;
+            }
+            
+            currentSession = {
+                code: code,
+                host: name,
+                players: [{ name: name, isHost: true, responses: {} }],
+                gameType: null,
+                responses: {},
+                createdAt: new Date().toISOString()
+            };
+            
+            currentPlayer = { name: name, isHost: true };
+            
+            localStorage.setItem('retroSession_' + code, JSON.stringify(currentSession));
+            localStorage.setItem('currentPlayer', JSON.stringify(currentPlayer));
+            
+            showLobby();
+        }
+
+        function joinSession() {
+            const name = document.getElementById('joinName').value.trim();
+            const code = document.getElementById('joinCode').value.trim().toUpperCase();
+            
+            if (!name || !code) {
+                alert('Please enter both name and session code!');
+                return;
+            }
+            
+            const sessionData = localStorage.getItem('retroSession_' + code);
+            if (!sessionData) {
+                alert('Session not found! Check the code or ask host to export/share the session.');
+                return;
+            }
+            
+            currentSession = JSON.parse(sessionData);
+            
+            // Check if player already exists
+            const existingPlayer = currentSession.players.find(p => p.name === name);
+            if (existingPlayer) {
+                currentPlayer = existingPlayer;
+            } else {
+                currentPlayer = { name: name, isHost: false, responses: {} };
+                currentSession.players.push(currentPlayer);
+                localStorage.setItem('retroSession_' + code, JSON.stringify(currentSession));
+            }
+            
+            localStorage.setItem('currentPlayer', JSON.stringify(currentPlayer));
+            
+            showLobby();
+        }
+
+        function showLobby() {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById('lobbyScreen').classList.add('active');
+            
+            document.getElementById('sessionInfo').textContent = 
+                `SESSION CODE: ${currentSession.code} | HOST: ${currentSession.host}`;
+            
+            let playersHTML = '<div style="background: #000; border: 3px solid #00ffff; padding: 20px; border-radius: 10px;">';
+            playersHTML += '<div style="color: #ffff00; font-size: 0.8em; margin-bottom: 15px;">PLAYERS IN LOBBY</div>';
+            
+            currentSession.players.forEach(player => {
+                const icon = player.isHost ? '👑' : '🎮';
+                playersHTML += `<div style="color: #00ffff; font-size: 0.7em; margin: 10px 0;">${icon} ${player.name}</div>`;
+            });
+            
+            playersHTML += '</div>';
+            document.getElementById('playersList').innerHTML = playersHTML;
+            
+            // Show game selection only for host
+            if (currentPlayer.isHost) {
+                document.getElementById('gameSelection').style.display = 'block';
+                document.getElementById('selectedGameDisplay').style.display = 'none';
+                
+                // Show start button only if game is selected
+                if (currentSession.selectedGame) {
+                    document.getElementById('startGameBtn').style.display = 'inline-block';
+                    document.getElementById('gameSelection').style.display = 'none';
+                    document.getElementById('selectedGameDisplay').style.display = 'block';
+                    document.getElementById('selectedGameName').textContent = getGameName(currentSession.selectedGame);
+                } else {
+                    document.getElementById('startGameBtn').style.display = 'none';
+                }
+            } else {
+                // Non-host players see selected game or waiting message
+                document.getElementById('gameSelection').style.display = 'none';
+                document.getElementById('startGameBtn').style.display = 'none';
+                
+                if (currentSession.selectedGame) {
+                    document.getElementById('selectedGameDisplay').style.display = 'block';
+                    document.getElementById('selectedGameName').textContent = getGameName(currentSession.selectedGame);
+                } else {
+                    document.getElementById('selectedGameDisplay').style.display = 'block';
+                    document.getElementById('selectedGameName').textContent = 'Waiting for host to select game...';
+                }
+            }
+        }
+
+        function getGameName(gameType) {
+            const names = {
+                'pacman': '🟡 PAC-RETRO',
+                'mario': '🍄 SUPER SPRINT',
+                'spaceinvaders': '👾 SPACE RETRO',
+                'tetris': '🟦 TETRO-SPECT'
+            };
+            return names[gameType] || 'Unknown Game';
+        }
+
+        function selectGame(gameType) {
+            if (!currentPlayer.isHost) {
+                alert('Only the host can select the game!');
+                return;
+            }
+            
+            currentSession.selectedGame = gameType;
+            localStorage.setItem('retroSession_' + currentSession.code, JSON.stringify(currentSession));
+            
+            playSound('coin');
+            showLobby();
+        }
+
+        function startMultiplayerGame() {
+            if (!currentPlayer.isHost) {
+                alert('Only the host can start the game!');
+                return;
+            }
+            
+            if (!currentSession.selectedGame) {
+                alert('Please select a game first!');
+                return;
+            }
+            
+            // Load the original game in iframe with selected game
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById('gameScreen').classList.add('active');
+            
+            // Load the retro game with game type parameter
+            document.getElementById('gameFrame').src = `retro-retrospective-game.html?game=${currentSession.selectedGame}&autostart=true`;
+        }
+
+        function playSound(type) {
+            // Simple beep sound
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            if (type === 'coin') {
+                oscillator.frequency.value = 1046.50;
+                gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.2);
+            }
+        }
+
+        function exportSession() {
+            const dataStr = JSON.stringify(currentSession, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `retro-session-${currentSession.code}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+            
+            alert('Session exported! Share this file with your team members.');
+        }
+
+        function importSession() {
+            document.getElementById('importFile').click();
+        }
+
+        function handleImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    localStorage.setItem('retroSession_' + imported.code, e.target.result);
+                    alert(`Session ${imported.code} imported successfully! You can now join it.`);
+                    backToSetup();
+                } catch (error) {
+                    alert('Invalid session file!');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function leaveSession() {
+            if (confirm('Are you sure you want to leave this session?')) {
+                currentSession = null;
+                currentPlayer = null;
+                localStorage.removeItem('currentPlayer');
+                backToSetup();
+            }
+        }
+
+        // Check if returning player
+        window.onload = function() {
+            const savedPlayer = localStorage.getItem('currentPlayer');
+            if (savedPlayer) {
+                currentPlayer = JSON.parse(savedPlayer);
+                // Try to find their session
+                const keys = Object.keys(localStorage);
+                for (let key of keys) {
+                    if (key.startsWith('retroSession_')) {
+                        const session = JSON.parse(localStorage.getItem(key));
+                        if (session.players.some(p => p.name === currentPlayer.name)) {
+                            currentSession = session;
+                            showLobby();
+                            return;
+                        }
+                    }
+                }
+            }
+        };
+    </script>
+</body>
+</html>
