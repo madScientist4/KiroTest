@@ -708,6 +708,40 @@
                     });
             }
         };
+
+        // Listen for messages from game iframe (for reset/restart)
+        window.addEventListener('message', function(event) {
+            if (event.data && event.data.action === 'resetSession') {
+                resetSessionForNewGame();
+            }
+        });
+
+        // Reset session for a new game
+        function resetSessionForNewGame() {
+            if (!currentSession || !database) return;
+            
+            // Only host can reset
+            if (!currentPlayer.isHost) {
+                alert('Only the host can start a new game!');
+                return;
+            }
+            
+            if (confirm('Start a new retrospective? This will bring everyone back to the lobby.')) {
+                // Reset session in Firebase
+                database.ref('sessions/' + currentSession.code).update({
+                    selectedGame: null,
+                    gameStarted: false
+                })
+                .then(() => {
+                    console.log('✅ Session reset for new game');
+                    // The real-time listener will automatically update all players
+                })
+                .catch((error) => {
+                    console.error('❌ Error resetting session:', error);
+                    alert('Error resetting session: ' + error.message);
+                });
+            }
+        }
     </script>
 </body>
 </html>
