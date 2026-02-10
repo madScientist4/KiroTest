@@ -1000,15 +1000,22 @@
 
         // Restart Game
         function restartGame() {
-            currentGame = '';
-            currentLevel = 0;
-            responses = {};
-            score = 0;
-            
-            document.getElementById('gameOverScreen').classList.remove('active');
-            document.getElementById('startScreen').classList.add('active');
-            
-            playSound('start');
+            // Check if running in iframe (multiplayer mode)
+            if (window.parent !== window) {
+                // Send message to parent to reset session
+                window.parent.postMessage({ action: 'resetSession' }, '*');
+            } else {
+                // Single player mode - just restart locally
+                currentGame = '';
+                currentLevel = 0;
+                responses = {};
+                score = 0;
+                
+                document.getElementById('gameOverScreen').classList.remove('active');
+                document.getElementById('startScreen').classList.add('active');
+                
+                playSound('start');
+            }
         }
 
         // Return to Main Menu
