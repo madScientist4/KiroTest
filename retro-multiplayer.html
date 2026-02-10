@@ -469,6 +469,12 @@
         }
 
         function showLobby() {
+            // Check if game has started - auto-load for all players
+            if (currentSession.gameStarted && currentSession.selectedGame) {
+                loadGame();
+                return;
+            }
+            
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById('lobbyScreen').classList.add('active');
             
@@ -554,6 +560,19 @@
                 return;
             }
             
+            // Update Firebase to signal game has started
+            database.ref('sessions/' + currentSession.code + '/gameStarted').set(true)
+                .then(() => {
+                    // Load the game for host
+                    loadGame();
+                })
+                .catch((error) => {
+                    console.error('❌ Error starting game:', error);
+                    alert('Error starting game: ' + error.message);
+                });
+        }
+
+        function loadGame() {
             // Load the original game in iframe with selected game
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById('gameScreen').classList.add('active');
