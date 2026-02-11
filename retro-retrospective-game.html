@@ -636,7 +636,7 @@
                         <div id="achievementsContainer"></div>
 
                         <div class="button-group">
-                            <button class="pixel-button" onclick="downloadRetro()">
+                            <button id="saveGameBtn" class="pixel-button" onclick="downloadRetro()">
                                 💾 SAVE GAME
                             </button>
                             <button class="pixel-button" onclick="restartGame()">
@@ -953,10 +953,48 @@
             achievementsHTML += '</div>';
             
             document.getElementById('achievementsContainer').innerHTML = achievementsHTML;
+            
+            // Handle multiplayer mode
+            if (window.parent !== window) {
+                // Auto-save responses for all players
+                autoSaveResponses();
+            }
+        }
+
+        // Auto-save responses in multiplayer mode
+        function autoSaveResponses() {
+            // Send responses to parent immediately
+            window.parent.postMessage({ 
+                action: 'autoSaveResponses',
+                playerResponses: {
+                    game: currentGame,
+                    responses: responses,
+                    score: score
+                }
+            }, '*');
         }
 
         // Download Summary
         function downloadRetro() {
+            // Check if running in iframe (multiplayer mode)
+            if (window.parent !== window) {
+                // Send message to parent to download combined responses
+                window.parent.postMessage({ 
+                    action: 'downloadCombinedResponses',
+                    playerResponses: {
+                        game: currentGame,
+                        responses: responses,
+                        score: score
+                    }
+                }, '*');
+            } else {
+                // Single player mode - download individual responses
+                downloadIndividualResponses();
+            }
+        }
+
+        // Download individual player responses (single player mode)
+        function downloadIndividualResponses() {
             const game = games[currentGame];
             let content = `╔════════════════════════════════════════╗\n`;
             content += `║   ${game.name.toUpperCase()} - RETROSPECTIVE   ║\n`;
@@ -1121,6 +1159,22 @@
                 setTimeout(() => {
                     startGame(gameParam);
                 }, 500);
+            }
+        });
+
+        // Listen for messages from parent (multiplayer mode)
+        window.addEventListener('message', function(event) {
+            if (event.data && event.data.action === 'hideSaveButton') {
+                const saveBtn = document.getElementById('saveGameBtn');
+                if (saveBtn) {
+                    if (event.data.isHost) {
+                        // Host sees the button
+                        saveBtn.style.display = 'inline-block';
+                    } else {
+                        // Non-hosts don't see the button
+                        saveBtn.style.display = 'none';
+                    }
+                }
             }
         });
     </script>
