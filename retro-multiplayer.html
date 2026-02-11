@@ -472,8 +472,17 @@
 
         function showLobby() {
             // Check if game has started - auto-load for all players
-            if (currentSession.gameStarted && currentSession.selectedGame) {
+            // BUT don't reload if we're already in the game screen
+            const gameScreen = document.getElementById('gameScreen');
+            const isGameScreenActive = gameScreen && gameScreen.classList.contains('active');
+            
+            if (currentSession.gameStarted && currentSession.selectedGame && !isGameScreenActive) {
                 loadGame();
+                return;
+            }
+            
+            // If game screen is already active, don't switch to lobby
+            if (isGameScreenActive) {
                 return;
             }
             

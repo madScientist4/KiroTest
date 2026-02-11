@@ -838,12 +838,16 @@
             const nextBtn = document.getElementById('nextBtn');
             const saveBtn = document.getElementById('saveResponsesBtn');
             
+            console.log('🎮 showLevel - isLastLevel:', isLastLevel, 'inIframe:', window.parent !== window);
+            
             if (isLastLevel && window.parent !== window) {
                 // Last level in multiplayer mode - show save button, hide next
+                console.log('🎮 Showing SAVE button, hiding NEXT button');
                 nextBtn.style.display = 'none';
                 saveBtn.style.display = 'inline-block';
             } else {
                 // Not last level or single player - show next, hide save
+                console.log('🎮 Showing NEXT button, hiding SAVE button');
                 nextBtn.style.display = 'inline-block';
                 saveBtn.style.display = 'none';
             }
@@ -1021,14 +1025,24 @@
 
         // Save responses to Firebase (called by button click)
         function saveResponsesToFirebase() {
+            console.log('💾 saveResponsesToFirebase called');
+            console.log('💾 Current game:', currentGame);
+            console.log('💾 Current level:', currentLevel);
+            console.log('💾 Responses:', responses);
+            console.log('💾 Score:', score);
+            console.log('💾 In iframe?', window.parent !== window);
+            
             // Save current level first
             saveCurrentResponse();
             
             // Mark that this player has completed
             playerHasCompleted = true;
+            console.log('💾 Player marked as completed');
             
             // Check if running in iframe (multiplayer mode)
             if (window.parent !== window) {
+                console.log('💾 Sending message to parent...');
+                
                 // Send responses to parent to save to Firebase and mark as complete
                 window.parent.postMessage({ 
                     action: 'savePlayerResponses',
@@ -1040,11 +1054,13 @@
                     }
                 }, '*');
                 
+                console.log('💾 Message sent to parent');
                 alert('✅ Your responses have been saved!');
                 
                 // Show waiting screen instead of game over
                 showWaitingScreen();
             } else {
+                console.log('❌ Not in multiplayer mode');
                 alert('This feature is only available in multiplayer mode.');
             }
         }
