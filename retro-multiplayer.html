@@ -1052,6 +1052,14 @@
 
         // Generate combined summary from all players
         function generateCombinedSummary(allResponses) {
+            console.log('📥 Generating combined summary from:', allResponses);
+            
+            // Validate that we have responses
+            if (!allResponses || Object.keys(allResponses).length === 0) {
+                alert('No player responses found to download.');
+                return;
+            }
+            
             const gameNames = {
                 'pacman': 'PAC-RETRO',
                 'mario': 'SUPER SPRINT',
@@ -1118,6 +1126,12 @@
                 // Show each player's response
                 Object.entries(allResponses).forEach(([playerName, playerData]) => {
                     content += `\n--- ${playerName} ---\n`;
+                    
+                    // Check if playerData and responses exist
+                    if (!playerData || !playerData.responses) {
+                        content += `No responses recorded\n`;
+                        return;
+                    }
                     
                     if (level.type === 'star_rating') {
                         const rating = playerData.responses[level.id + '_rating'] || 0;
