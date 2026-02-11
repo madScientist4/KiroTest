@@ -346,7 +346,7 @@
         projectId: "alpha-retro",
         storageBucket: "alpha-retro.firebasestorage.app",
         messagingSenderId: "54510928928",
-        appId: "1:54510928928:web:b60f654f62badf61e6e845"
+        appId: "1:54510928928:web:8d5546e7734c469ae6e845"
         };
 
         // Initialize Firebase
@@ -716,6 +716,7 @@
         function checkForActiveSessions() {
             if (!database) return;
             
+            // Try to check for sessions, but don't fail if permission denied
             database.ref('sessions').once('value')
                 .then((snapshot) => {
                     if (snapshot.exists()) {
@@ -734,7 +735,12 @@
                     }
                 })
                 .catch((error) => {
-                    console.error('❌ Error checking for active sessions:', error);
+                    // Permission denied or other error - just show both options
+                    console.log('ℹ️ Cannot check for active sessions (permission denied) - showing all options');
+                    const hostOption = document.getElementById('hostOption');
+                    if (hostOption) {
+                        hostOption.style.display = 'block';
+                    }
                 });
         }
 
@@ -742,6 +748,10 @@
         window.addEventListener('message', function(event) {
             if (event.data && event.data.action === 'resetSession') {
                 resetSessionForNewGame();
+            } else if (event.data && event.data.action === 'downloadCombinedResponses') {
+                savePlayerResponses(event.data.playerResponses);
+            } else if (event.data && event.data.action === 'autoSaveResponses') {
+                autoSavePlayerResponses(event.data.playerResponses);
             }
         });
 
@@ -770,6 +780,197 @@
                     alert('Error resetting session: ' + error.message);
                 });
             }
+        }
+
+        // Save player responses to Firebase
+        function savePlayerResponses(playerData) {
+            if (!currentSession || !database || !currentPlayer) return;
+            
+            // Save this player's responses to Firebase
+            const playerResponsesRef = database.ref('sessions/' + currentSession.code + '/playerResponses/' + currentPlayer.name);
+            
+            playerResponsesRef.set({
+                game: playerData.game,
+                responses: playerData.responses,
+                score: playerData.score,
+                completedAt: new Date().toISOString()
+            })
+            .then(() => {
+                console.log('✅ Responses saved to Firebase');
+                
+                // If host, download combined responses
+                if (currentPlayer.isHost) {
+                    downloadCombinedResponses();
+                } else {
+                    alert('Your responses have been saved! The host will download the combined summary.');
+                }
+            })
+            .catch((error) => {
+                console.error('❌ Error saving responses:', error);
+                alert('Error saving responses: ' + error.message);
+            });
+        }
+
+        // Auto-save player responses (called automatically when game ends)
+        function autoSavePlayerResponses(playerData) {
+            if (!currentSession || !database || !currentPlayer) return;
+            
+            // Save this player's responses to Firebase
+            const playerResponsesRef = database.ref('sessions/' + currentSession.code + '/playerResponses/' + currentPlayer.name);
+            
+            playerResponsesRef.set({
+                game: playerData.game,
+                responses: playerData.responses,
+                score: playerData.score,
+                completedAt: new Date().toISOString()
+            })
+            .then(() => {
+                console.log('✅ Responses auto-saved to Firebase for ' + currentPlayer.name);
+                
+                // Hide save button for non-hosts, show message
+                hideSaveButtonForNonHost();
+            })
+            .catch((error) => {
+                console.error('❌ Error auto-saving responses:', error);
+            });
+        }
+
+        // Hide save button for non-hosts in the game iframe
+        function hideSaveButtonForNonHost() {
+            const gameFrame = document.getElementById('gameFrame');
+            if (gameFrame && gameFrame.contentWindow) {
+                gameFrame.contentWindow.postMessage({
+                    action: 'hideSaveButton',
+                    isHost: currentPlayer.isHost
+                }, '*');
+            }
+        }
+
+        // Download combined responses from all players (host only)
+        function downloadCombinedResponses() {
+            if (!currentSession || !database) return;
+            
+            if (!currentPlayer.isHost) {
+                alert('Only the host can download combined responses!');
+                return;
+            }
+            
+            // Fetch all player responses from Firebase
+            database.ref('sessions/' + currentSession.code + '/playerResponses').once('value')
+                .then((snapshot) => {
+                    if (!snapshot.exists()) {
+                        alert('No responses found yet. Make sure everyone has completed the game.');
+                        return;
+                    }
+                    
+                    const allResponses = snapshot.val();
+                    generateCombinedSummary(allResponses);
+                })
+                .catch((error) => {
+                    console.error('❌ Error fetching responses:', error);
+                    alert('Error fetching responses: ' + error.message);
+                });
+        }
+
+        // Generate combined summary from all players
+        function generateCombinedSummary(allResponses) {
+            const gameNames = {
+                'pacman': 'PAC-RETRO',
+                'mario': 'SUPER SPRINT',
+                'spaceinvaders': 'SPACE RETRO',
+                'tetris': 'TETRO-SPECT'
+            };
+            
+            const gameLevels = {
+                'pacman': [
+                    { id: 'power_pellets', title: '⚡ POWER PELLETS', prompt: 'What gave us energy and power this sprint?' },
+                    { id: 'ghosts', title: '👻 GHOSTS TO AVOID', prompt: 'What obstacles or problems should we avoid?' },
+                    { id: 'dots', title: '• DOTS TO COLLECT', prompt: 'What small wins or improvements should we keep collecting?' },
+                    { id: 'maze', title: '🗺️ NAVIGATE THE MAZE', prompt: 'What path should we take next?' },
+                    { id: 'high_score', title: '🏆 HIGH SCORE GOAL', prompt: 'What would make the next sprint a record-breaking success?' },
+                    { id: 'iteration_star', title: '⭐ ITERATION STAR', prompt: 'Rate this sprint and share your biggest takeaway', type: 'star_rating' }
+                ],
+                'mario': [
+                    { id: 'power_ups', title: '🍄 POWER-UPS', prompt: 'What tools, practices, or people powered us up?' },
+                    { id: 'obstacles', title: '🧱 OBSTACLES', prompt: 'What blocks or barriers did we hit?' },
+                    { id: 'coins', title: '🪙 COINS COLLECTED', prompt: 'What valuable things did we gain or learn?' },
+                    { id: 'pipes', title: '🟢 SECRET PIPES', prompt: 'What shortcuts or better ways of working did we discover?' },
+                    { id: 'flag', title: '🚩 NEXT CASTLE', prompt: 'What is our next big goal or milestone?' },
+                    { id: 'iteration_star', title: '⭐ ITERATION STAR', prompt: 'Rate this sprint and share your biggest takeaway', type: 'star_rating' }
+                ],
+                'spaceinvaders': [
+                    { id: 'invaders', title: '👾 INVADERS', prompt: 'What threats or risks are approaching?' },
+                    { id: 'shields', title: '🛡️ SHIELDS', prompt: 'What protections or safeguards do we have?' },
+                    { id: 'laser', title: '🔫 LASER SHOTS', prompt: 'What actions should we take to eliminate problems?' },
+                    { id: 'ufo', title: '🛸 BONUS UFO', prompt: 'What unexpected opportunities appeared?' },
+                    { id: 'next_wave', title: '🌊 NEXT WAVE', prompt: 'What challenges do we expect in the next sprint?' },
+                    { id: 'iteration_star', title: '⭐ ITERATION STAR', prompt: 'Rate this sprint and share your biggest takeaway', type: 'star_rating' }
+                ],
+                'tetris': [
+                    { id: 'perfect_fit', title: '✨ PERFECT FIT', prompt: 'What pieces fit together perfectly?' },
+                    { id: 'gaps', title: '⬜ GAPS LEFT', prompt: 'What gaps or missing pieces do we still have?' },
+                    { id: 'line_clear', title: '💥 LINE CLEARS', prompt: 'What problems did we completely eliminate?' },
+                    { id: 'wrong_piece', title: '🔄 WRONG PIECES', prompt: 'What didn\'t fit?' },
+                    { id: 'next_piece', title: '⏭️ NEXT PIECE', prompt: 'What do we need next to succeed?' },
+                    { id: 'iteration_star', title: '⭐ ITERATION STAR', prompt: 'Rate this sprint and share your biggest takeaway', type: 'star_rating' }
+                ]
+            };
+            
+            // Get game type from first player's responses
+            const firstPlayer = Object.values(allResponses)[0];
+            const gameType = firstPlayer.game;
+            const gameName = gameNames[gameType] || 'RETROSPECTIVE';
+            const levels = gameLevels[gameType] || [];
+            
+            let content = `╔════════════════════════════════════════════════════════════╗\n`;
+            content += `║   ${gameName} - TEAM RETROSPECTIVE SUMMARY   ║\n`;
+            content += `╚════════════════════════════════════════════════════════════╝\n\n`;
+            content += `Date: ${new Date().toLocaleDateString()}\n`;
+            content += `Session Code: ${currentSession.code}\n`;
+            content += `Participants: ${Object.keys(allResponses).length}\n`;
+            content += `${'='.repeat(70)}\n\n`;
+            
+            // For each level, show all players' responses
+            levels.forEach((level, index) => {
+                content += `\n${'='.repeat(70)}\n`;
+                content += `LEVEL ${index + 1}: ${level.title}\n`;
+                content += `${'='.repeat(70)}\n`;
+                content += `Question: ${level.prompt}\n\n`;
+                
+                // Show each player's response
+                Object.entries(allResponses).forEach(([playerName, playerData]) => {
+                    content += `\n--- ${playerName} ---\n`;
+                    
+                    if (level.type === 'star_rating') {
+                        const rating = playerData.responses[level.id + '_rating'] || 0;
+                        const comment = playerData.responses[level.id + '_comment'] || 'No comment provided';
+                        const stars = '★'.repeat(rating) + '☆'.repeat(5 - rating);
+                        content += `Rating: ${stars} (${rating}/5)\n`;
+                        content += `Takeaway: ${comment}\n`;
+                    } else {
+                        const response = playerData.responses[level.id] || 'No response provided';
+                        content += `${response}\n`;
+                    }
+                });
+                
+                content += `\n`;
+            });
+            
+            content += `\n${'='.repeat(70)}\n`;
+            content += `\n🎮 RETROSPECTIVE COMPLETE - THANKS FOR PARTICIPATING! 🎮\n`;
+            
+            // Download the file
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `team-retrospective-${gameType}-${currentSession.code}-${new Date().toISOString().split('T')[0]}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            alert('Combined team retrospective downloaded successfully!');
         }
     </script>
 </body>
