@@ -802,6 +802,8 @@
 
         // Listen for messages from game iframe (for reset/restart)
         window.addEventListener('message', function(event) {
+            console.log('📨 Message received:', event.data);
+            
             if (event.data && event.data.action === 'resetSession') {
                 resetSessionForNewGame();
             } else if (event.data && event.data.action === 'downloadCombinedResponses') {
@@ -809,6 +811,7 @@
             } else if (event.data && event.data.action === 'autoSaveResponses') {
                 autoSavePlayerResponses(event.data.playerResponses);
             } else if (event.data && event.data.action === 'savePlayerResponses') {
+                console.log('📝 Calling savePlayerResponsesOnly...');
                 savePlayerResponsesOnly(event.data.playerResponses);
             } else if (event.data && event.data.action === 'requestCompletionStatus') {
                 sendCompletionStatusToGame();
@@ -897,10 +900,25 @@
 
         // Save player responses only (no download)
         function savePlayerResponsesOnly(playerData) {
-            if (!currentSession || !database || !currentPlayer) return;
+            console.log('📝 savePlayerResponsesOnly called with:', playerData);
+            console.log('📝 currentSession:', currentSession);
+            console.log('📝 currentPlayer:', currentPlayer);
+            console.log('📝 database:', database);
+            
+            if (!currentSession || !database || !currentPlayer) {
+                console.error('❌ Missing required data:', {
+                    hasSession: !!currentSession,
+                    hasDatabase: !!database,
+                    hasPlayer: !!currentPlayer
+                });
+                alert('Error: Cannot save responses. Missing session, database, or player information.');
+                return;
+            }
             
             // Save this player's responses to Firebase with completion status
             const playerResponsesRef = database.ref('sessions/' + currentSession.code + '/playerResponses/' + currentPlayer.name);
+            
+            console.log('📝 Saving to path:', 'sessions/' + currentSession.code + '/playerResponses/' + currentPlayer.name);
             
             playerResponsesRef.set({
                 game: playerData.game,
@@ -917,7 +935,7 @@
             })
             .catch((error) => {
                 console.error('❌ Error saving responses:', error);
-                alert('Error saving responses: ' + error.message);
+                alert('Error saving responses: ' + error.message + '\n\nPlease check the browser console for details.');
             });
         }
 
