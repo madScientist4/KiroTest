@@ -684,6 +684,7 @@
         let currentLevel = 0;
         let responses = {};
         let score = 0;
+        let playerHasCompleted = false;
 
         // Game Configurations
         const games = {
@@ -1023,6 +1024,9 @@
             // Save current level first
             saveCurrentResponse();
             
+            // Mark that this player has completed
+            playerHasCompleted = true;
+            
             // Check if running in iframe (multiplayer mode)
             if (window.parent !== window) {
                 // Send responses to parent to save to Firebase and mark as complete
@@ -1265,8 +1269,10 @@
                 // Update the waiting screen with player completion status
                 updateCompletionStatus(event.data.players);
             } else if (event.data && event.data.action === 'allPlayersComplete') {
-                // All players are done - show final results
-                showGameOver();
+                // All players are done - show final results ONLY if this player has completed
+                if (playerHasCompleted) {
+                    showGameOver();
+                }
             }
         });
 
