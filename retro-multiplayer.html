@@ -1144,7 +1144,7 @@
                         const comment = playerData.responses[level.id + '_comment'] || 'No comment provided';
                         const stars = '★'.repeat(rating) + '☆'.repeat(5 - rating);
                         content += `Rating: ${stars} (${rating}/5)\n`;
-                        content += `Takeaway: ${comment}\n`;
+                        content += `Iteration Star: ${comment}\n`;
                     } else {
                         const response = playerData.responses[level.id] || 'No response provided';
                         content += `${response}\n`;
