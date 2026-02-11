@@ -364,6 +364,7 @@
         let currentSession = null;
         let currentPlayer = null;
         let sessionListener = null;
+        let responsesDownloaded = false;
 
         function showHostSetup() {
             document.getElementById('setupScreen').classList.remove('active');
@@ -582,6 +583,31 @@
             
             // Load the retro game with game type parameter
             document.getElementById('gameFrame').src = `retro-retrospective-game.html?game=${currentSession.selectedGame}&autostart=true`;
+            
+            // Start listening for completion status changes
+            listenToCompletionStatus();
+        }
+
+        // Listen for real-time completion status updates
+        function listenToCompletionStatus() {
+            if (!currentSession || !database) return;
+            
+            const responsesRef = database.ref('sessions/' + currentSession.code + '/playerResponses');
+            responsesRef.on('value', (snapshot) => {
+                if (snapshot.exists()) {
+                    // Send updated status to game iframe
+                    sendCompletionStatusToGame();
+                    
+                    // Check if all players are complete
+                    const allResponses = snapshot.val();
+                    const totalPlayers = currentSession.players.length;
+                    const completedPlayers = Object.values(allResponses).filter(r => r.completed).length;
+                    
+                    if (completedPlayers === totalPlayers) {
+                        notifyAllPlayersComplete();
+                    }
+                }
+            });
         }
 
         function playSound(type) {
@@ -652,7 +678,33 @@
         }
 
         function leaveSession() {
-            if (confirm('Are you sure you want to leave this session?')) {
+            const isHost = currentPlayer && currentPlayer.isHost;
+            
+            // Check if host has downloaded responses
+            if (isHost && !responsesDownloaded) {
+                const forceLeave = confirm('⚠️ WARNING: You have not downloaded the team responses yet!\n\nIf you end the session now, all responses will be lost.\n\nClick OK to end session anyway, or Cancel to go back and download responses first.');
+                
+                if (!forceLeave) {
+                    return; // Don't leave, let them download first
+                }
+            }
+            
+            const confirmMessage = isHost 
+                ? 'Are you sure you want to end this session? This will disconnect all players and delete the session.'
+                : 'Are you sure you want to leave this session?';
+            
+            if (confirm(confirmMessage)) {
+                // If host is leaving, delete the entire session from Firebase
+                if (isHost && currentSession && database) {
+                    database.ref('sessions/' + currentSession.code).remove()
+                        .then(() => {
+                            console.log('✅ Session deleted by host');
+                        })
+                        .catch((error) => {
+                            console.error('❌ Error deleting session:', error);
+                        });
+                }
+                
                 // Stop listening to Firebase updates
                 if (sessionListener) {
                     sessionListener.off();
@@ -661,6 +713,7 @@
                 
                 currentSession = null;
                 currentPlayer = null;
+                responsesDownloaded = false;
                 localStorage.removeItem('currentPlayer');
                 localStorage.removeItem('currentSessionCode');
                 backToSetup();
@@ -757,6 +810,8 @@
                 autoSavePlayerResponses(event.data.playerResponses);
             } else if (event.data && event.data.action === 'savePlayerResponses') {
                 savePlayerResponsesOnly(event.data.playerResponses);
+            } else if (event.data && event.data.action === 'requestCompletionStatus') {
+                sendCompletionStatusToGame();
             }
         });
 
@@ -844,22 +899,91 @@
         function savePlayerResponsesOnly(playerData) {
             if (!currentSession || !database || !currentPlayer) return;
             
-            // Save this player's responses to Firebase
+            // Save this player's responses to Firebase with completion status
             const playerResponsesRef = database.ref('sessions/' + currentSession.code + '/playerResponses/' + currentPlayer.name);
             
             playerResponsesRef.set({
                 game: playerData.game,
                 responses: playerData.responses,
                 score: playerData.score,
+                completed: playerData.completed || false,
                 completedAt: new Date().toISOString()
             })
             .then(() => {
                 console.log('✅ Responses saved to Firebase for ' + currentPlayer.name);
+                
+                // Check if all players have completed
+                checkAllPlayersComplete();
             })
             .catch((error) => {
                 console.error('❌ Error saving responses:', error);
                 alert('Error saving responses: ' + error.message);
             });
+        }
+
+        // Check if all players have completed the quiz
+        function checkAllPlayersComplete() {
+            if (!currentSession || !database) return;
+            
+            database.ref('sessions/' + currentSession.code + '/playerResponses').once('value')
+                .then((snapshot) => {
+                    if (!snapshot.exists()) return;
+                    
+                    const allResponses = snapshot.val();
+                    const totalPlayers = currentSession.players.length;
+                    const completedPlayers = Object.values(allResponses).filter(r => r.completed).length;
+                    
+                    console.log(`✅ Completion check: ${completedPlayers}/${totalPlayers} players done`);
+                    
+                    // Send completion status to game iframe
+                    sendCompletionStatusToGame();
+                    
+                    // If all players are done, notify everyone
+                    if (completedPlayers === totalPlayers) {
+                        notifyAllPlayersComplete();
+                    }
+                })
+                .catch((error) => {
+                    console.error('❌ Error checking completion:', error);
+                });
+        }
+
+        // Send completion status to game iframe
+        function sendCompletionStatusToGame() {
+            if (!currentSession || !database) return;
+            
+            database.ref('sessions/' + currentSession.code + '/playerResponses').once('value')
+                .then((snapshot) => {
+                    const allResponses = snapshot.exists() ? snapshot.val() : {};
+                    
+                    // Build player status list
+                    const playerStatus = currentSession.players.map(player => ({
+                        name: player.name,
+                        completed: allResponses[player.name]?.completed || false
+                    }));
+                    
+                    // Send to game iframe
+                    const gameFrame = document.getElementById('gameFrame');
+                    if (gameFrame && gameFrame.contentWindow) {
+                        gameFrame.contentWindow.postMessage({
+                            action: 'updateCompletionStatus',
+                            players: playerStatus
+                        }, '*');
+                    }
+                })
+                .catch((error) => {
+                    console.error('❌ Error sending completion status:', error);
+                });
+        }
+
+        // Notify all players that everyone is complete
+        function notifyAllPlayersComplete() {
+            const gameFrame = document.getElementById('gameFrame');
+            if (gameFrame && gameFrame.contentWindow) {
+                gameFrame.contentWindow.postMessage({
+                    action: 'allPlayersComplete'
+                }, '*');
+            }
         }
 
         // Hide save button for non-hosts in the game iframe
@@ -996,6 +1120,9 @@
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
+            
+            // Mark that responses have been downloaded
+            responsesDownloaded = true;
             
             alert('Combined team retrospective downloaded successfully!');
         }

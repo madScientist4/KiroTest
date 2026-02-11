@@ -628,6 +628,32 @@
                     </div>
                 </div>
 
+                <!-- Waiting Screen -->
+                <div id="waitingScreen" class="screen">
+                    <div class="game-over-screen">
+                        <div class="game-over-title" style="font-size: 2em;">WAITING FOR OTHERS...</div>
+                        <div style="color: #00ffff; font-size: 0.8em; margin: 30px 0;">
+                            You've completed the retrospective!
+                        </div>
+                        <div class="final-score">
+                            YOUR SCORE: <span class="coin-counter" id="waitingScore">0</span>
+                        </div>
+
+                        <div id="waitingPlayersContainer" style="margin: 40px 0;">
+                            <div style="color: #ffff00; font-size: 0.9em; margin-bottom: 20px;">
+                                COMPLETION STATUS
+                            </div>
+                            <div id="playerCompletionList"></div>
+                        </div>
+
+                        <div style="color: #00ffff; font-size: 0.6em; line-height: 1.8; margin: 20px 0;">
+                            Please wait while other team members finish their responses.
+                            <br>
+                            The final results will appear when everyone is done!
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Game Over Screen -->
                 <div id="gameOverScreen" class="screen">
                     <div class="game-over-screen">
@@ -999,19 +1025,38 @@
             
             // Check if running in iframe (multiplayer mode)
             if (window.parent !== window) {
-                // Send responses to parent to save to Firebase
+                // Send responses to parent to save to Firebase and mark as complete
                 window.parent.postMessage({ 
                     action: 'savePlayerResponses',
                     playerResponses: {
                         game: currentGame,
                         responses: responses,
-                        score: score
+                        score: score,
+                        completed: true
                     }
                 }, '*');
                 
                 alert('✅ Your responses have been saved!');
+                
+                // Show waiting screen instead of game over
+                showWaitingScreen();
             } else {
                 alert('This feature is only available in multiplayer mode.');
+            }
+        }
+
+        // Show waiting screen while other players finish
+        function showWaitingScreen() {
+            document.getElementById('gameScreen').classList.remove('active');
+            document.getElementById('waitingScreen').classList.add('active');
+            
+            document.getElementById('waitingScore').textContent = score;
+            
+            // Request player completion status from parent
+            if (window.parent !== window) {
+                window.parent.postMessage({ 
+                    action: 'requestCompletionStatus'
+                }, '*');
             }
         }
 
@@ -1216,8 +1261,35 @@
                         saveBtn.style.display = 'none';
                     }
                 }
+            } else if (event.data && event.data.action === 'updateCompletionStatus') {
+                // Update the waiting screen with player completion status
+                updateCompletionStatus(event.data.players);
+            } else if (event.data && event.data.action === 'allPlayersComplete') {
+                // All players are done - show final results
+                showGameOver();
             }
         });
+
+        // Update completion status display
+        function updateCompletionStatus(players) {
+            const container = document.getElementById('playerCompletionList');
+            if (!container) return;
+            
+            let html = '<div style="background: #000; border: 3px solid #00ffff; padding: 20px; border-radius: 10px;">';
+            
+            players.forEach(player => {
+                const icon = player.completed ? '✅' : '⏳';
+                const status = player.completed ? 'COMPLETE' : 'IN PROGRESS';
+                const color = player.completed ? '#00ff00' : '#ffff00';
+                
+                html += `<div style="color: ${color}; font-size: 0.7em; margin: 10px 0;">
+                    ${icon} ${player.name} - ${status}
+                </div>`;
+            });
+            
+            html += '</div>';
+            container.innerHTML = html;
+        }
     </script>
 </body>
 </html>
