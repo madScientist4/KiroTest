@@ -817,6 +817,12 @@
                 resetSessionForNewGame();
             } else if (event.data && event.data.action === 'downloadCombinedResponses') {
                 savePlayerResponses(event.data.playerResponses);
+            } else if (event.data && event.data.action === 'downloadAndReturnToLobby') {
+                // Download responses and return to lobby
+                downloadCombinedResponses();
+                // Return all players to lobby
+                document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+                document.getElementById('lobbyScreen').classList.add('active');
             } else if (event.data && event.data.action === 'autoSaveResponses') {
                 autoSavePlayerResponses(event.data.playerResponses);
             } else if (event.data && event.data.action === 'savePlayerResponses') {

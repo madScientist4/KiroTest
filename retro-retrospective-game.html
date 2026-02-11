@@ -1084,9 +1084,9 @@
         function downloadRetro() {
             // Check if running in iframe (multiplayer mode)
             if (window.parent !== window) {
-                // Send message to parent to download combined responses
+                // Send message to parent to download combined responses and return to lobby
                 window.parent.postMessage({ 
-                    action: 'downloadCombinedResponses',
+                    action: 'downloadAndReturnToLobby',
                     playerResponses: {
                         game: currentGame,
                         responses: responses,
