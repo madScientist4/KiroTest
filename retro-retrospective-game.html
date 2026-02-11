@@ -618,8 +618,11 @@
                             <button class="pixel-button" onclick="returnToMainMenu()">
                                 🏠 MAIN MENU
                             </button>
-                            <button class="pixel-button" onclick="nextLevel()">
+                            <button id="nextBtn" class="pixel-button" onclick="nextLevel()">
                                 NEXT ▶
+                            </button>
+                            <button id="saveResponsesBtn" class="pixel-button" onclick="saveResponsesToFirebase()" style="display: none; background: #00ff00; color: #000;">
+                                💾 SAVE RESPONSES
                             </button>
                         </div>
                     </div>
@@ -802,6 +805,21 @@
             
             updateProgress();
             updateScore();
+            
+            // Show/hide buttons based on level
+            const isLastLevel = currentLevel === game.levels.length - 1;
+            const nextBtn = document.getElementById('nextBtn');
+            const saveBtn = document.getElementById('saveResponsesBtn');
+            
+            if (isLastLevel && window.parent !== window) {
+                // Last level in multiplayer mode - show save button, hide next
+                nextBtn.style.display = 'none';
+                saveBtn.style.display = 'inline-block';
+            } else {
+                // Not last level or single player - show next, hide save
+                nextBtn.style.display = 'inline-block';
+                saveBtn.style.display = 'none';
+            }
         }
 
 
@@ -972,6 +990,29 @@
                     score: score
                 }
             }, '*');
+        }
+
+        // Save responses to Firebase (called by button click)
+        function saveResponsesToFirebase() {
+            // Save current level first
+            saveCurrentResponse();
+            
+            // Check if running in iframe (multiplayer mode)
+            if (window.parent !== window) {
+                // Send responses to parent to save to Firebase
+                window.parent.postMessage({ 
+                    action: 'savePlayerResponses',
+                    playerResponses: {
+                        game: currentGame,
+                        responses: responses,
+                        score: score
+                    }
+                }, '*');
+                
+                alert('✅ Your responses have been saved!');
+            } else {
+                alert('This feature is only available in multiplayer mode.');
+            }
         }
 
         // Download Summary

@@ -316,6 +316,7 @@
                         
                         <div style="margin-top: 30px;">
                             <button class="pixel-button" id="startGameBtn" onclick="startMultiplayerGame()" style="display: none;">START GAME</button>
+                            <button class="pixel-button" id="downloadResponsesBtn" onclick="downloadCombinedResponses()" style="display: none; background: #00ff00; color: #000;">📥 DOWNLOAD ALL RESPONSES</button>
                             <button class="pixel-button" onclick="exportSession()">📤 EXPORT</button>
                             <button class="pixel-button" onclick="importSession()">📥 IMPORT</button>
                             <button class="pixel-button" style="background: #666;" onclick="leaveSession()">LEAVE</button>
@@ -496,6 +497,7 @@
             if (currentPlayer.isHost) {
                 document.getElementById('gameSelection').style.display = 'block';
                 document.getElementById('selectedGameDisplay').style.display = 'none';
+                document.getElementById('downloadResponsesBtn').style.display = 'inline-block';
                 
                 // Show start button only if game is selected
                 if (currentSession.selectedGame) {
@@ -510,6 +512,7 @@
                 // Non-host players see selected game or waiting message
                 document.getElementById('gameSelection').style.display = 'none';
                 document.getElementById('startGameBtn').style.display = 'none';
+                document.getElementById('downloadResponsesBtn').style.display = 'none';
                 
                 if (currentSession.selectedGame) {
                     document.getElementById('selectedGameDisplay').style.display = 'block';
@@ -752,6 +755,8 @@
                 savePlayerResponses(event.data.playerResponses);
             } else if (event.data && event.data.action === 'autoSaveResponses') {
                 autoSavePlayerResponses(event.data.playerResponses);
+            } else if (event.data && event.data.action === 'savePlayerResponses') {
+                savePlayerResponsesOnly(event.data.playerResponses);
             }
         });
 
@@ -832,6 +837,28 @@
             })
             .catch((error) => {
                 console.error('❌ Error auto-saving responses:', error);
+            });
+        }
+
+        // Save player responses only (no download)
+        function savePlayerResponsesOnly(playerData) {
+            if (!currentSession || !database || !currentPlayer) return;
+            
+            // Save this player's responses to Firebase
+            const playerResponsesRef = database.ref('sessions/' + currentSession.code + '/playerResponses/' + currentPlayer.name);
+            
+            playerResponsesRef.set({
+                game: playerData.game,
+                responses: playerData.responses,
+                score: playerData.score,
+                completedAt: new Date().toISOString()
+            })
+            .then(() => {
+                console.log('✅ Responses saved to Firebase for ' + currentPlayer.name);
+            })
+            .catch((error) => {
+                console.error('❌ Error saving responses:', error);
+                alert('Error saving responses: ' + error.message);
             });
         }
 
