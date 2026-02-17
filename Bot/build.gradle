@@ -1,0 +1,57 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.2.0'
+    id 'io.spring.dependency-management' version '1.1.4'
+}
+
+group = 'com.fnb'
+version = '1.0.0'
+sourceCompatibility = '17'
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // Spring Boot Web
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    
+    // Spring Data JPA
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    
+    // PostgreSQL Driver
+    runtimeOnly 'org.postgresql:postgresql'
+    
+    // JavaMail
+    implementation 'org.springframework.boot:spring-boot-starter-mail'
+    
+    // Swagger Parser for OpenAPI validation
+    implementation 'io.swagger.parser.v3:swagger-parser:2.1.19'
+    
+    // Lombok
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+    
+    // Spring Boot Test
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    
+    // H2 Database for testing
+    testRuntimeOnly 'com.h2database:h2'
+    
+    // jqwik for property-based testing
+    testImplementation 'net.jqwik:jqwik:1.8.2'
+    testImplementation 'net.jqwik:jqwik-spring:1.0.0'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+    
+    // Configure jqwik
+    systemProperty 'jqwik.tries.default', '100'
+}
